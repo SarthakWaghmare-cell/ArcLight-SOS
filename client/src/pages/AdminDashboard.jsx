@@ -38,9 +38,15 @@ const AdminDashboard = () => {
       );
     });
 
+    socket.on('escalationUpdate', () => {
+      fetchAlerts(); // Re-fetch alerts if escalation worker changed them
+      playAlertSound();
+    });
+
     return () => {
       socket.off('alertUpdate');
       socket.off('alertStatusUpdate');
+      socket.off('escalationUpdate');
     };
   }, []);
 
@@ -77,6 +83,18 @@ const AdminDashboard = () => {
       });
     } catch (err) {
       console.error("Failed to update status", err);
+    }
+  };
+
+  const acknowledgeAlert = async (id) => {
+    try {
+      await fetch(`/api/alert/${id}/acknowledge`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handlerName: 'Admin ' + Math.floor(Math.random() * 100) })
+      });
+    } catch (err) {
+      console.error("Failed to acknowledge", err);
     }
   };
 
@@ -159,6 +177,7 @@ const AdminDashboard = () => {
                 key={alert._id} 
                 alert={alert} 
                 onUpdateStatus={updateAlertStatus} 
+                onAcknowledge={acknowledgeAlert}
               />
             ))}
           </div>

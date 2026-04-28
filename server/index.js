@@ -57,6 +57,40 @@ const startServer = async () => {
     server.listen(PORT, () => {
       console.log(`🚀 ArcLight-SOS server running on http://localhost:${PORT}`);
     });
+
+    // Escalation Worker
+    const Alert = require("./models/Alert");
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const escalationThreshold = new Date(now.getTime() - 20 * 1000); // 20s
+        const heartbeatThreshold = new Date(now.getTime() - 15 * 1000); // 15s
+
+        // 1. Escalate Unacknowledged Incidents
+        const escalated = await Alert.updateMany(
+          { status: 'Active', createdAt: { $lte: escalationThreshold }, priority: { $ne: 'Critical' } },
+          { 
+            $set: { status: 'Escalated', priority: 'Critical' },
+            $push: { timelineLogs: { status: 'System Escalation', note: 'No response within 20s' } }
+          }
+        );
+        if (escalated.modifiedCount > 0) {
+           io.emit("escalationUpdate");
+        }
+
+        // 2. Mark Unresponsive Heartbeats
+        await Alert.updateMany(
+          { status: { $nin: ['Resolved', 'Acknowledged'] }, lastHeartbeatAt: { $lte: heartbeatThreshold }, heartbeatStatus: 'Active' },
+          { 
+            $set: { heartbeatStatus: 'Unresponsive', priority: 'Critical' },
+            $push: { timelineLogs: { status: 'Heartbeat Lost', note: 'User device unresponsive' } }
+          }
+        );
+      } catch (err) {
+        console.error("Escalation worker error:", err.message);
+      }
+    }, 5000);
+
   } catch (err) {
     console.error("❌ MongoDB connection error:", err.message);
     process.exit(1);

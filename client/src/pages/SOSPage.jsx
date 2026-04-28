@@ -19,6 +19,7 @@ const SOSPage = () => {
   const [success, setSuccess] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [activeAlertId, setActiveAlertId] = useState(null);
   const timerRef = useRef(null);
   const navigate = useNavigate();
 
@@ -31,6 +32,20 @@ const SOSPage = () => {
       if (timerRef.current) clearInterval(timerRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    let heartbeatInterval;
+    if (activeAlertId) {
+      heartbeatInterval = setInterval(async () => {
+        try {
+          await fetch(`/api/alert/${activeAlertId}/heartbeat`, { method: 'POST' });
+        } catch (err) {
+          console.error("Heartbeat failed", err);
+        }
+      }, 5000); // 5 seconds
+    }
+    return () => clearInterval(heartbeatInterval);
+  }, [activeAlertId]);
 
   const getHumanReadableLocation = async (lat, lng) => {
     try {
@@ -60,7 +75,7 @@ const SOSPage = () => {
     }
   };
 
-  const executeSosLogic = async () => {
+  const executeSosLogic = async (isSilent = false) => {
     if (!room.trim()) {
       if ("geolocation" in navigator) {
         setSending(true);
@@ -69,7 +84,7 @@ const SOSPage = () => {
             const { latitude, longitude } = position.coords;
             const locationName = await getHumanReadableLocation(latitude, longitude);
             setRoom(locationName);
-            await sendAlertData(locationName);
+            await sendAlertData(locationName, isSilent);
           },
           (error) => {
             setSending(false);
@@ -82,8 +97,16 @@ const SOSPage = () => {
       }
     } else {
       setSending(true);
-      await sendAlertData(room);
+      await sendAlertData(room, isSilent);
     }
+  };
+
+
+  const handleSilentSos = (e) => {
+    e.preventDefault(); // Prevent context menu
+    if (sending || success) return;
+    executeSosLogic(true);
+    // TRULY SILENT: No UI changes whatsoever.
   };
 
   const handleSosClick = () => {
@@ -103,23 +126,28 @@ const SOSPage = () => {
       if (currentCount <= 0) {
         clearInterval(timerRef.current);
         setCountdown(null);
-        executeSosLogic();
+        executeSosLogic(false);
       }
     }, 1000);
   };
 
-  const sendAlertData = async (finalRoom) => {
+  const sendAlertData = async (finalRoom, isSilent = false) => {
     try {
       const response = await fetch(`/api/alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room: finalRoom, type: selectedType })
+        body: JSON.stringify({ room: finalRoom, type: selectedType, isSilent })
       });
 
       if (!response.ok) throw new Error('Failed to send alert');
+      
+      const data = await response.json();
+      setActiveAlertId(data._id);
 
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 4000);
+      if (!isSilent) {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 4000);
+      }
     } catch (error) {
       console.error(error);
       alert("Failed to send alert. Please try again.");
@@ -206,9 +234,9 @@ const SOSPage = () => {
             {/* Darker shadow ring for dark mode */}
             <div className="w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] md:w-[400px] md:h-[400px] rounded-full bg-[#0D0D0D] shadow-[inset_0_2px_4px_rgba(255,255,255,0.05),0_10px_40px_rgba(255,59,48,0.15)] flex items-center justify-center p-[15px] sm:p-[20px] md:p-[30px] transition-all">
 
-              {/* Actual Red Button layer */}
               <button
                 onClick={handleSosClick}
+                onContextMenu={handleSilentSos}
                 disabled={sending || success}
                 className={`
                   w-full h-full rounded-full flex flex-col items-center justify-center
