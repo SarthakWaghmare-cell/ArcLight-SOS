@@ -38,7 +38,7 @@ const SOSPage = () => {
     if (activeAlertId) {
       heartbeatInterval = setInterval(async () => {
         try {
-          await fetch(`/api/alert/${activeAlertId}/heartbeat`, { method: 'POST' });
+          await fetch(`https://arclight-sos.onrender.com/api/alert/${activeAlertId}/heartbeat`, { method: 'POST' });
         } catch (err) {
           console.error("Heartbeat failed", err);
         }
@@ -133,7 +133,7 @@ const SOSPage = () => {
 
   const sendAlertData = async (finalRoom, isSilent = false) => {
     try {
-      const response = await fetch(`/api/alert`, {
+      const response = await fetch(`https://arclight-sos.onrender.com/api/alert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room: finalRoom, type: selectedType, isSilent })

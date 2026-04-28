@@ -14,7 +14,7 @@ const AdminDashboard = () => {
     // 1. Fetch initial alerts
     const fetchAlerts = async () => {
       try {
-        const response = await fetch(`/api/alerts`);
+        const response = await fetch(`https://arclight-sos.onrender.com/api/alerts`);
         const data = await response.json();
         setAlerts(data);
       } catch (err) {
@@ -76,7 +76,7 @@ const AdminDashboard = () => {
 
   const updateAlertStatus = async (id, status) => {
     try {
-      await fetch(`/api/alert/${id}`, {
+      await fetch(`https://arclight-sos.onrender.com/api/alert/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
@@ -88,7 +88,7 @@ const AdminDashboard = () => {
 
   const acknowledgeAlert = async (id) => {
     try {
-      await fetch(`/api/alert/${id}/acknowledge`, {
+      await fetch(`https://arclight-sos.onrender.com/api/alert/${id}/acknowledge`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ handlerName: 'Admin ' + Math.floor(Math.random() * 100) })
